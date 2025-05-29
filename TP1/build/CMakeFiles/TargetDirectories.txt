@@ -1,0 +1,3 @@
+/home/luana/Desktop/ENSTA/PDI 2/TP1/build/CMakeFiles/intiwish.dir
+/home/luana/Desktop/ENSTA/PDI 2/TP1/build/CMakeFiles/edit_cache.dir
+/home/luana/Desktop/ENSTA/PDI 2/TP1/build/CMakeFiles/rebuild_cache.dir
