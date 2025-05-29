@@ -1,12 +1,11 @@
 import numpy as np
-from skimage.morphology import skeletonize, remove_small_objects, closing, disk
-from skimage.filters import frangi, gaussian, threshold_otsu
+from skimage.morphology import skeletonize, remove_small_objects, closing, disk, binary_dilation, thin
+from skimage.filters import frangi, gaussian, threshold_otsu, meijering
 from skimage.exposure import equalize_adapthist
 from skimage.measure import label
 from PIL import Image
 from scipy import ndimage as ndi
-from skimage.util import img_as_ubyte
-from skimage import color, measure
+from skimage import color, measure, restoration
 from matplotlib import pyplot as plt
 
 def enhanced_segmentation_v1(img, img_mask):
@@ -53,6 +52,37 @@ def enhanced_segmentation_v2(img, img_mask):
     
     return img_bin & img_mask
 
+def enhanced_segmentation_v3(img, img_mask):
+    # Pré-traitement amélioré
+    img_eq = equalize_adapthist(img, clip_limit=0.02, kernel_size=32)
+    img_smooth = gaussian(img_eq, sigma=1)
+    
+    # Détection multi-échelle et multi-filtre
+    # Frangi pour vaisseaux fins
+    img_frangi_fin = frangi(img_smooth, sigmas=range(1, 2), alpha=0.5, beta=0.5)  # Vaisseaux fins
+    # Meijering pour améliorer la détection des structures linéaires
+    img_meijering = meijering(img_smooth, sigmas=range(1, 3), alpha=0.5)
+    # Combinaison des résultats
+    img_combined = np.maximum(img_frangi_fin, img_meijering)
+    
+    # Seuillage adaptatif avec seuil bas pour capturer les vaisseaux fins
+    thresh = threshold_otsu(img_combined)  # Seuil plus permissif
+    img_bin = img_combined > thresh
+    
+    # Post-traitement préservant les structures fines
+    img_bin = remove_small_objects(img_bin, min_size=50)  # Taille minimale réduite
+    
+    # Connexion des vaisseaux fragmentés
+    labels = label(img_bin)
+    regions = measure.regionprops(labels)
+    for region in regions:
+        if region.area < 100:  # Supprime les régions trop petites
+            img_bin[labels == region.label] = 0
+
+    img_bin = binary_dilation(img_bin, disk(1))
+    
+    return img_bin & img_mask
+
 def evaluate(img_out, img_GT):
     GT_skel = skeletonize(img_GT)
     img_out_skel = skeletonize(img_out)
@@ -81,7 +111,7 @@ def segment_image(num_image):
     img_mask[invalid_pixels] = 0
 
     # Segmentation améliorée
-    img_out = enhanced_segmentation_v2(img, img_mask)
+    img_out = enhanced_segmentation_v3(img, img_mask)
 
     # Chargement de la vérité terrain
     img_GT = np.asarray(Image.open(f"{img_path}{dic_images[num_image]['gt']}")).astype(np.int32)
@@ -111,7 +141,8 @@ def segment_image(num_image):
     plt.imshow(np.abs(img_out.astype(int) - img_GT.astype(int)), cmap='jet')
     plt.title('Différence GT/Segmentation')
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"images_v3/comparation_v3_img{num_image}.png", dpi=300)
+    # plt.show()
 
 dic_images = {
     0: {"src": "star01_OSC.jpg", "gt": "GT_01.png"},
