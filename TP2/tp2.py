@@ -97,7 +97,7 @@ def evaluate(img_out, img_GT):
     
     return ACCU, RECALL, F1, img_out_skel, GT_skel
 
-def segment_image(num_image):
+def segment_image(num_image, version = "v3"):
     img_path = './images_IOSTAR/'
 
     # Chargement de l'image
@@ -111,7 +111,12 @@ def segment_image(num_image):
     img_mask[invalid_pixels] = 0
 
     # Segmentation améliorée
-    img_out = enhanced_segmentation_v3(img, img_mask)
+    if version == "v1":
+        img_out = enhanced_segmentation_v1(img, img_mask)
+    elif version == "v2":
+        img_out = enhanced_segmentation_v2(img, img_mask)
+    else:
+        img_out = enhanced_segmentation_v3(img, img_mask)
 
     # Chargement de la vérité terrain
     img_GT = np.asarray(Image.open(f"{img_path}{dic_images[num_image]['gt']}")).astype(np.int32)
@@ -141,7 +146,7 @@ def segment_image(num_image):
     plt.imshow(np.abs(img_out.astype(int) - img_GT.astype(int)), cmap='jet')
     plt.title('Différence GT/Segmentation')
     plt.tight_layout()
-    plt.savefig(f"images_v3/comparation_v3_img{num_image}.png", dpi=300)
+    plt.savefig(f"images_{version}/comparation_{version}_img{num_image}.png", dpi=180)
     # plt.show()
 
 dic_images = {
@@ -157,5 +162,7 @@ dic_images = {
     9: {"src": "star48_OSN.jpg", "gt": "GT_48.png"}
 }
 
+version = "v3"
+
 for i in dic_images:
-    segment_image(i)
+    segment_image(i, version)
